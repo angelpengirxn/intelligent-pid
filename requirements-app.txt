@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pymupdf
+pillow
+numpy
+openpyxl
+ultralytics
+rapidocr-onnxruntime   # OCR (if it won't install: pip install easyocr)
+pytesseract
+openai

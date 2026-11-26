@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P&amp;ID Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: navy app bar, then drawing viewer (left) + results panel (right); stacks on narrow screens.
+   Single blue & white theme. */
+:root{
+  --navy:#0b2545; --navy-2:#13315c; --blue:#1f4e9c; --blue-hover:#183f80; --blue-soft:#e8eef8;
+  --bg:#f4f7fb; --surface:#ffffff; --line:#d9e2ef; --line-strong:#c3d0e2;
+  --fg:#0f1f36; --muted:#5a6b85; --paper:#ffffff; --ink:#1b2735;
+  --cat-valve:#1f4e9c; --cat-fitting:#0f766e; --cat-inst:#7c3aed;   /* blue / teal / purple: easy to tell apart */
+  --warn:#b42318; --warn-soft:#fdecea;
+  --font:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:8px; color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5}
+[hidden]{display:none!important}
+
+/* App bar */
+.appbar{background:var(--navy);color:#fff}
+.appbar-in{max-width:1440px;margin:0 auto;padding:12px max(16px, env(safe-area-inset-left, 0px));display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:34px;height:34px;border-radius:7px;background:var(--blue);display:grid;place-items:center;flex:none}
+.brand-mark svg{width:20px;height:20px}
+.brand h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.005em;line-height:1.2}
+.brand p{margin:0;color:#a9bbd6;font-size:12px}
+.btn{font:600 13px var(--font);border:1px solid var(--blue);background:var(--blue);color:#fff;padding:8px 14px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--blue-hover);border-color:var(--blue-hover)}
+.btn.light{background:#fff;color:var(--navy);border-color:#fff}
+.btn.light:hover{background:var(--blue-soft);border-color:var(--blue-soft)}
+.btn svg{width:16px;height:16px}
+.btn:focus-visible,.tab:focus-visible,.row:focus-visible,input:focus-visible,select:focus-visible,.fchip:focus-within{outline:2px solid #5b9bf0;outline-offset:2px}
+
+.wrap{max-width:1440px;margin:0 auto;padding:20px max(16px, env(safe-area-inset-left, 0px)) 40px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.card-head h2{font-size:15px;font-weight:600;margin:0;overflow-wrap:anywhere}
+.tag-chip{font:500 11px var(--font);text-transform:uppercase;letter-spacing:.06em;color:var(--blue);background:var(--blue-soft);border-radius:4px;padding:3px 8px;white-space:nowrap}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters .lbl{font-size:12px;color:var(--muted);margin-right:2px}
+.fchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:5px 10px;font-size:12.5px;font-weight:500;cursor:pointer;user-select:none;color:var(--fg)}
+.fchip input{position:absolute;opacity:0;pointer-events:none}
+.fchip .sw{width:12px;height:12px;border-radius:3px;border:2px solid var(--c);background:var(--c)}
+.fchip .cnt{font-family:var(--mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fchip:has(input:not(:checked)){color:var(--muted);background:var(--bg);border-style:dashed}
+.fchip:has(input:not(:checked)) .sw{background:transparent}
+.pagebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line);background:#fff;font-size:12.5px}
+.pagebar[hidden]{display:none}
+.pagebar .lbl{color:var(--muted);margin-right:2px}
+.pchip{font:500 12.5px var(--font);border:1px solid var(--line-strong);background:#fff;color:var(--fg);border-radius:6px;padding:4px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.pchip .st{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pchip[aria-current="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.pchip[aria-current="true"] .st{color:#dbe7fb}
+.pchip.wait{color:var(--muted);border-style:dashed}
+.pchip.err{color:#b42318;border-color:#f1b4ae}
+.pagebar .prog{margin-left:auto;color:var(--muted)}
+.view-opts{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--muted)}
+.view-opts label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.view-opts input[type=checkbox]{accent-color:var(--blue)}
+.view-opts select{font:500 12.5px var(--font);color:var(--fg);background:#fff;border:1px solid var(--line-strong);border-radius:6px;padding:3px 6px}
+
+.viewer-box{position:relative}
+.viewer{overflow:auto;background:var(--paper);max-height:76vh;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.viewer.zoomed{cursor:grab}
+.viewer.panning{cursor:grabbing;user-select:none}
+.zoomctl{display:inline-flex;align-items:center;border:1px solid var(--line-strong);border-radius:6px;background:#fff;overflow:hidden}
+.zoomctl button{font:500 13px var(--font);border:0;background:none;color:var(--fg);padding:4px 9px;cursor:pointer}
+.zoomctl button:hover{background:var(--blue-soft)}
+.zoomctl #zoomVal{font:500 12px var(--mono);min-width:46px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.zoomctl #zoomFit{border-left:1px solid var(--line)}
+.viewer svg{display:block;width:100%;height:auto}
+.busy{position:absolute;inset:0;background:rgba(255,255,255,.82);display:grid;place-items:center;font-weight:600}
+.busy div{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);padding:12px 16px;border-radius:8px;box-shadow:0 4px 16px rgba(11,37,69,.08)}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--blue-soft);border-top-color:var(--blue);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.drop-hint{position:absolute;inset:8px;border:2px dashed var(--blue);border-radius:8px;display:grid;place-items:center;font-weight:600;color:var(--blue);background:rgba(232,238,248,.9);pointer-events:none}
+.foot-note{padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.foot-note i{display:inline-block;width:14px;height:10px;border:2px dashed var(--muted);border-radius:2px}
+
+/* Drawing */
+.ink{stroke:var(--ink);fill:none;stroke-width:2;stroke-linejoin:round}
+.ink-fill{fill:var(--ink)}
+.paper-fill{fill:var(--paper)}
+.sig{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:4 4;fill:none;opacity:.75}
+.dtext{fill:var(--ink);font-family:var(--mono);font-size:11px}
+.dtext.b{font-weight:500;font-size:12px}
+.det rect.box{fill:none;pointer-events:all;stroke-width:2;vector-effect:non-scaling-stroke}
+.det.low rect.box{stroke-dasharray:5 3}
+.det .lab rect{stroke:none}
+.det .lab text{font-family:var(--mono);fill:#fff;font-weight:500}
+.det{cursor:pointer}
+.det.dim{opacity:.18}
+.det.active rect.box{stroke-width:4}
+.det.off{display:none}
+#drawing.nolabels .det:not(.active) .lab{display:none}
+
+/* Results */
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line);border-radius:var(--r) var(--r) 0 0;overflow:hidden}
+.stat{background:#fff;padding:12px 14px;min-width:0}
+.stat .n{font-weight:700;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--navy)}
+.stat .l{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
+.stat .l i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.review{margin:12px 16px 0;padding:8px 12px;border-radius:6px;background:var(--warn-soft);color:var(--warn);font-size:12.5px;display:flex;gap:8px;align-items:center}
+.review svg{width:16px;height:16px;flex:none}
+.empty{padding:20px 16px;color:var(--muted);font-size:13px}
+
+.tabs{display:flex;gap:4px;padding:0 12px;border-bottom:1px solid var(--line);margin-top:8px}
+.tab{font:600 13px var(--font);background:none;border:0;color:var(--muted);padding:10px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.panel{padding:0 0 12px}
+.table-wrap{overflow:auto;max-height:560px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{position:sticky;top:0;background:#f7f9fc;text-align:left;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+td{padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+#rows td:nth-child(1){white-space:normal;min-width:140px;width:100%}
+.sym small{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
+tr.row{cursor:pointer}
+tr.row:hover,tr.row.active{background:var(--blue-soft)}
+tr.row.dim{opacity:.4}
+.sym{display:flex;align-items:center;gap:8px}
+.sym i{width:3px;height:18px;border-radius:2px;display:inline-block;flex:none}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.conf{font-family:var(--mono);font-size:11.5px;padding:1px 7px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
+.conf.low{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+td.act{width:1%;padding:4px 10px 4px 4px;text-align:right}
+select.edit{font:500 12px var(--font);color:var(--blue);border:1px solid var(--line-strong);border-radius:6px;background:#fff;padding:3px 2px;width:64px;cursor:pointer}
+select.edit:hover,select.edit:focus{border-color:var(--blue);outline:none}
+.fixed{color:var(--blue);font-weight:600}
+tr.group td{background:#f7f9fc;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:10px 12px 8px;border-top:1px solid var(--line);white-space:normal}
+tr.group td span{text-transform:none;letter-spacing:0;font-weight:400}
+tr.row.wrong td,tr.row.wrong .sym small,tr.row.wrong .conf{color:#9aa3af}
+tr.row.wrong .sym i{background:#d3d9e2!important}
+tr.row.wrong .nm{text-decoration:line-through}
+button.restore{font:500 12px var(--font);color:var(--blue);border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:3px 8px;cursor:pointer;width:64px}
+button.restore:hover{border-color:var(--blue);background:var(--blue-soft)}
+.det.wrong rect.box{stroke:#8a94a3!important;stroke-dasharray:6 4}
+.det.wrong .lab rect{fill:#8a94a3!important}
+.det.wrong:not(.active){display:none}
+
+.chat{display:flex;flex-direction:column;gap:10px;padding:12px 16px;max-height:440px;overflow-y:auto}
+.msg{max-width:88%;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap}
+.msg.user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:3px}
+.msg.bot{align-self:flex-start;background:var(--blue-soft);color:var(--fg);border-bottom-left-radius:3px}
+.chat-form{display:flex;gap:8px;padding:8px 16px 4px}
+.chat-form input{flex:1;min-width:0;font:400 13px var(--font);color:var(--fg);background:#fff;border:1px solid var(--line-strong);border-radius:6px;padding:9px 12px}
+.suggest{display:flex;gap:6px;flex-wrap:wrap;padding:4px 16px 0}
+.suggest button{font:500 12px var(--font);background:#fff;border:1px solid var(--line-strong);color:var(--blue);border-radius:999px;padding:4px 10px;cursor:pointer}
+.suggest button:hover{background:var(--blue-soft)}
+.chat-hint{margin:2px 16px 0;font-size:11.5px;color:var(--muted)}
+.msg.thinking{color:var(--muted);font-style:italic}
+
+.report-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
+.report-head p{margin:0;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.sheet td.review-y{color:var(--warn);font-weight:600}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);box-shadow:0 6px 20px rgba(11,37,69,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:1000px){ .wrap{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:560px){ .brand p{display:none} .stat .n{font-size:20px} .appbar-in .btn span{display:none} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <div class="appbar-in">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 7 L21 17 L21 7 L3 17 Z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <h1>P&amp;ID Analyzer</h1>
+        <p>Symbol detection and reporting for piping &amp; instrumentation diagrams</p>
+      </div>
+    </div>
+    <label class="btn light" for="upload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+      <span>Upload P&amp;ID</span>
+    </label>
+    <input id="upload" type="file" accept=".pdf,.png,.jpg,.jpeg" hidden>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" aria-label="Drawing">
+    <div class="card-head">
+      <h2 id="dwgTitle">PID-0132 · Crude transfer to V-102</h2>
+      <span class="tag-chip" id="dwgChip">Sample</span>
+    </div>
+    <div class="toolbar">
+      <div class="filters" role="group" aria-label="Show symbols on the drawing">
+        <span class="lbl">Show</span>
+        <label class="fchip"><input type="checkbox" data-cat="valve" checked><span class="sw" style="--c:var(--cat-valve)"></span>Valves <span class="cnt" id="cnt-valve">0</span></label>
+        <label class="fchip"><input type="checkbox" data-cat="inst" checked><span class="sw" style="--c:var(--cat-inst)"></span>Instruments <span class="cnt" id="cnt-inst">0</span></label>
+        <label class="fchip"><input type="checkbox" data-cat="fitting" checked><span class="sw" style="--c:var(--cat-fitting)"></span>Fittings &amp; other <span class="cnt" id="cnt-fitting">0</span></label>
+      </div>
+      <div class="view-opts">
+        <label><input type="checkbox" id="showLabels" checked> Labels</label>
+        <span class="zoomctl" title="Pinch on the touchpad (or Ctrl/⌘ + scroll) to zoom; drag to move around">
+          <button type="button" id="zoomOut" aria-label="Zoom out">−</button><span id="zoomVal" aria-live="polite">Fit</span><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomFit">Fit</button>
+        </span>
+      </div>
+    </div>
+    <div class="pagebar" id="pageBar" hidden role="group" aria-label="Pages">
+      <span class="lbl">Page</span>
+      <span id="pageChips" style="display:contents"></span>
+      <span class="prog" id="pageProg"></span>
+    </div>
+    <div class="viewer-box" id="viewerBox">
+      <div class="viewer" id="viewer">
+        <svg id="drawing" viewBox="0 0 900 560" role="img" aria-label="P&amp;ID with detected symbols">
+          <g id="bg"><image id="bgImg" x="0" y="0" width="900" height="560" hidden/></g>
+          <g id="sample">
+            <rect width="900" height="560" fill="var(--paper)"/>
+            <rect class="ink" x="60" y="110" width="90" height="230" rx="36"/>
+            <text class="dtext b" x="105" y="230" text-anchor="middle">T-101</text><text class="dtext" x="105" y="246" text-anchor="middle">FEED TANK</text>
+            <circle class="ink" cx="260" cy="420" r="26"/><path class="ink" d="M248 404 L248 436 L282 420 Z"/>
+            <text class="dtext b" x="260" y="466" text-anchor="middle">P-101</text>
+            <rect class="ink" x="790" y="120" width="90" height="210" rx="34"/>
+            <text class="dtext b" x="835" y="222" text-anchor="middle">V-102</text><text class="dtext" x="835" y="238" text-anchor="middle">SEPARATOR</text>
+            <path class="ink" d="M105 340 V420 H234"/><text class="dtext" x="96" y="456">4"-P-1001-A1</text>
+            <path class="ink" d="M260 394 V200 H790"/><text class="dtext" x="575" y="232">3"-P-1002-A1</text>
+            <path class="ink-fill" d="M770 195 L780 200 L770 205 Z"/>
+            <path class="ink" d="M835 330 V455"/><text class="dtext" x="826" y="470" text-anchor="end">TO DRAIN</text>
+            <path class="ink paper-fill" d="M166 411 L194 429 L194 411 L166 429 Z"/>
+            <path class="ink paper-fill" d="M316 191 L344 209 L344 191 L316 209 Z"/><path class="ink-fill" d="M330 200 L344 191 L344 209 Z"/>
+            <path class="ink paper-fill" d="M410 189 L430 194 L430 206 L410 211 Z"/>
+            <path class="ink paper-fill" d="M526 191 L554 209 L554 191 L526 209 Z"/>
+            <path class="ink" d="M540 200 V178"/><path class="ink" d="M528 178 A12 12 0 0 1 552 178 Z"/>
+            <path class="ink paper-fill" d="M646 191 L674 209 L674 191 L646 209 Z"/><circle class="ink-fill" cx="660" cy="200" r="4.5"/>
+            <path class="ink" d="M737 189 V211 M743 189 V211 M740 189 V171"/><circle class="ink-fill" cx="740" cy="165" r="6"/><circle class="ink paper-fill" cx="740" cy="148" r="6"/>
+            <path class="ink paper-fill" d="M826 381 L844 409 L826 409 L844 381 Z"/>
+            <path class="sig" d="M150 150 H195"/><circle class="ink paper-fill" cx="215" cy="150" r="20"/>
+            <text class="dtext b" x="215" y="148" text-anchor="middle">LT</text><text class="dtext" x="215" y="161" text-anchor="middle">101</text>
+            <path class="sig" d="M450 130 V200"/><circle class="ink paper-fill" cx="450" cy="110" r="20"/>
+            <text class="dtext b" x="450" y="108" text-anchor="middle">FT</text><text class="dtext" x="450" y="121" text-anchor="middle">101</text>
+            <path class="sig" d="M470 106 L520 99"/><path class="sig" d="M540 115 V166"/>
+            <circle class="ink paper-fill" cx="540" cy="95" r="20"/><path class="ink" d="M520 95 H560"/>
+            <text class="dtext b" x="540" y="91" text-anchor="middle">PIC</text><text class="dtext" x="540" y="108" text-anchor="middle">204</text>
+            <path class="sig" d="M300 280 V200"/><circle class="ink paper-fill" cx="300" cy="300" r="20"/>
+            <text class="dtext b" x="300" y="298" text-anchor="middle">PI</text><text class="dtext" x="300" y="311" text-anchor="middle">102</text>
+            <rect class="ink" x="560" y="484" width="330" height="66" stroke-width="1.5"/>
+            <path class="ink" d="M560 506 H890 M730 506 V550" stroke-width="1"/>
+            <text class="dtext b" x="570" y="499">PIPING &amp; INSTRUMENTATION DIAGRAM</text>
+            <text class="dtext" x="570" y="524">DWG NO.</text><text class="dtext b" x="570" y="540">PID-0132</text>
+            <text class="dtext" x="740" y="524">REV / SCALE</text><text class="dtext b" x="740" y="540">B · NTS</text>
+          </g>
+          <g id="dets"></g>
+        </svg>
+      </div>
+      <div class="busy" id="busy" hidden><div><span class="spin"></span><span id="busyText">Analyzing…</span></div></div>
+      <div class="drop-hint" id="dropHint" hidden>Drop the P&amp;ID to analyze it</div>
+    </div>
+    <div class="foot-note"><i></i>Dashed box: confidence below 0.70, check it on the drawing.</div>
+  </section>
+
+  <section class="card" aria-label="Results">
+    <div class="summary" id="summary"></div>
+    <div class="review" id="reviewNote" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 21h20L12 3zM12 10v5M12 18h.01"/></svg>
+      <span id="reviewText"></span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-sym" aria-selected="true" aria-controls="p-sym">Symbols</button>
+      <button class="tab" role="tab" id="tab-chat" aria-selected="false" aria-controls="p-chat">Ask</button>
+      <button class="tab" role="tab" id="tab-rep" aria-selected="false" aria-controls="p-rep">Report</button>
+    </div>
+
+    <div class="panel" id="p-sym" role="tabpanel" aria-labelledby="tab-sym">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Tag</th><th>Conf.</th><th title="Wrong name? Pick the right one. Not a symbol? Choose Wrong detection.">Fix</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyRows" hidden>No symbols detected on this drawing.</div>
+    </div>
+
+    <div class="panel" id="p-chat" role="tabpanel" aria-labelledby="tab-chat" hidden>
+      <div class="chat" id="chat"></div>
+      <div class="suggest" id="suggest">
+        <button type="button">How many valves?</button>
+        <button type="button">How many instruments?</button>
+        <button type="button">List all tags</button>
+        <button type="button">What needs review?</button>
+      </div>
+      <form class="chat-form" id="chatForm">
+        <input id="chatInput" type="text" placeholder="Ask about this drawing…" autocomplete="off">
+        <button class="btn" type="submit" id="chatSend">Send</button>
+      </form>
+      <p class="chat-hint" id="chatHint">Answers use the symbols and tags detected on this drawing.</p>
+    </div>
+
+    <div class="panel" id="p-rep" role="tabpanel" aria-labelledby="tab-rep" hidden>
+      <div class="report-head">
+        <p id="repName">Preview of the Excel report</p>
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>
+          Export to Excel
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table class="sheet">
+          <thead><tr><th>No.</th><th>Tag</th><th>Name</th><th>Category</th><th>Conf.</th><th>Review</th></tr></thead>
+          <tbody id="sheetRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const CAT = {valve:{name:"Valves",v:"--cat-valve"}, inst:{name:"Instruments",v:"--cat-inst"}, fitting:{name:"Fittings & other",v:"--cat-fitting"}};
+const CAT_ORDER = ["valve","inst","fitting"];
+const CAT_SINGULAR = {valve:"Valve", inst:"Instrument", fitting:"Fitting & other"};
+const REVIEW = 0.70;
+const SAMPLE = [
+  {id:"d1", cls:"Gate valve", cat:"valve", conf:.96, tag:"", desc:"", b:[162,407,36,26]},
+  {id:"d2", cls:"Check valve", cat:"valve", conf:.91, tag:"", desc:"", b:[312,187,36,26]},
+  {id:"d3", cls:"Reducer", cat:"fitting", conf:.88, tag:"", desc:"", b:[406,185,28,30], pos:"below"},
+  {id:"d4", cls:"Control valve", cat:"valve", conf:.93, tag:"PCV-204", desc:"Pressure control valve", b:[522,164,36,48]},
+  {id:"d5", cls:"Globe valve", cat:"valve", conf:.84, tag:"", desc:"", b:[642,187,36,26]},
+  {id:"d6", cls:"Spectacle blind (closed)", cat:"fitting", conf:.79, tag:"", desc:"", b:[731,140,18,72], align:"end"},
+  {id:"d7", cls:"Gate valve", cat:"valve", conf:.62, tag:"", desc:"", b:[822,377,26,36], align:"end"},
+  {id:"i1", cls:"Field-mounted instrument", cat:"inst", conf:.90, tag:"LT-101", desc:"Level transmitter", b:[193,128,44,44]},
+  {id:"i2", cls:"Field-mounted instrument", cat:"inst", conf:.97, tag:"FT-101", desc:"Flow transmitter", b:[428,88,44,44], align:"end"},
+  {id:"i3", cls:"Control-room instrument", cat:"inst", conf:.95, tag:"PIC-204", desc:"Pressure indicating controller", b:[518,73,44,44]},
+  {id:"i4", cls:"Field-mounted instrument", cat:"inst", conf:.71, tag:"PI-102", desc:"Pressure indicator", b:[278,278,44,44]},
+];
+const state = {sample:true, job:null, W:900, H:560, dets:SAMPLE, filename:"PID-0132", show:{valve:true, inst:true, fitting:true},
+               pageCount:1, page:1, pages:{}, pending:{}, failed:{}};
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const catKey = d => CAT[d.cat] ? d.cat : "fitting";
+const nameOf = d => d.name || d.desc || d.cls;
+const TAG_RE = /^(?:(\d{1,4})-)?([A-Z]{1,5})-(\d{1,6}[A-Z]?(?:\/\d{1,6}[A-Z]?)*)$/;
+function tagParts(d){
+  if (d.tag_parts) return d.tag_parts;
+  const m = TAG_RE.exec(d.tag || ""); return m ? {area:m[1] || "", letters:m[2], numbers:m[3].split("/")} : null;
+}
+const numKey = n => { const m = /^(\d+)([A-Z]?)$/.exec(n || ""); return m ? [parseInt(m[1], 10), m[2]] : [1e9, n || ""]; };
+function cmpTags(a, b){            // tagged first, by area, loop number, letters; untagged after, by category
+  const pa = tagParts(a), pb = tagParts(b);
+  if (pa && !pb) return -1; if (!pa && pb) return 1;
+  if (pa && pb){
+    const ka = [parseInt(pa.area || "0", 10), ...numKey(pa.numbers[0]), pa.letters];
+    const kb = [parseInt(pb.area || "0", 10), ...numKey(pb.numbers[0]), pb.letters];
+    for (let i = 0; i < ka.length; i++){ if (ka[i] < kb[i]) return -1; if (ka[i] > kb[i]) return 1; }
+    return 0;
+  }
+  return (CAT_ORDER.indexOf(catKey(a)) - CAT_ORDER.indexOf(catKey(b))) || (a.b[1] - b.b[1]) || (a.b[0] - b.b[0]);
+}
+
+// ---------- rendering
+function render(){
+  const g = $("dets"); g.innerHTML = "";
+  const s = Math.max(state.W, state.H) / 900;
+  const fs = 10 * s, lh = 14 * s, cw = 6.1 * s, pad = 3 * s;
+  const live = state.dets.filter(d => !d.wrong), wrong = state.dets.filter(d => d.wrong);
+  state.dets.forEach(d => {
+    const [x,y,w,h] = d.b, col = `var(${CAT[catKey(d)].v})`;
+    const grp = el("g", {class:"det" + (lowConf(d) ? " low" : "") + (d.wrong ? " wrong" : ""), "data-id":d.id, "data-cat":catKey(d)});
+    grp.appendChild(el("rect", {class:"box", x:x-pad, y:y-pad, width:w+2*pad, height:h+2*pad, rx:3*s, stroke:col}));
+    const label = d.wrong ? "Wrong detection" : nameOf(d);
+    const lw = label.length * cw + 10 * s;
+    let lx = d.align === "end" ? x + w + pad - lw : x - pad;
+    const ly = d.pos === "below" || y - pad - lh - s < 0 ? y + h + pad + s : y - pad - lh - s;
+    lx = Math.max(0, Math.min(lx, state.W - lw));
+    const lab = el("g", {class:"lab"});
+    lab.appendChild(el("rect", {x:lx, y:ly, width:lw, height:lh, rx:2*s, fill:col}));
+    const t = el("text", {x:lx + 5*s, y:ly + lh*0.75, "font-size":fs}); t.textContent = label; lab.appendChild(t);
+    grp.appendChild(lab);
+    grp.addEventListener("click", () => {
+      setActive(d.id, true);
+      const tr = document.querySelector(`tr.row[data-id="${d.id}"]`);     // bring its row (and Fix menu) into view
+      if (tr && pinned === d.id) tr.scrollIntoView({block:"nearest", behavior:"smooth"});
+    });
+    grp.addEventListener("mouseenter", () => setActive(d.id));
+    grp.addEventListener("mouseleave", () => setActive(null));
+    g.appendChild(grp);
+  });
+
+  $("rows").innerHTML = ""; $("sheetRows").innerHTML = "";
+  [...live].sort(cmpTags).forEach((d, n) => {
+    $("rows").appendChild(symbolRow(d));
+    const sr = document.createElement("tr");
+    sr.innerHTML = `<td class="mono">${n+1}</td><td class="mono">${esc(d.tag) || "—"}</td><td>${esc(nameOf(d))}</td><td>${CAT[catKey(d)].name}</td>
+      <td class="mono">${d.conf.toFixed(2)}</td><td class="${lowConf(d) ? "review-y" : ""}">${lowConf(d) ? "Yes" : d.corrected ? "Checked" : "No"}</td>`;
+    $("sheetRows").appendChild(sr);
+  });
+  if (wrong.length) {
+    const g = document.createElement("tr");
+    g.className = "group";
+    g.innerHTML = `<td colspan="4">Wrong detections (${wrong.length}) <span>· removed from the drawing, counts, Excel and chat</span></td>`;
+    $("rows").appendChild(g);
+    [...wrong].sort(cmpTags).forEach(d => $("rows").appendChild(symbolRow(d)));
+  }
+  $("emptyRows").hidden = state.dets.length > 0;
+
+  // summary + counts
+  $("summary").innerHTML = CAT_ORDER.map(k =>
+    `<div class="stat"><div class="n">${live.filter(d => catKey(d) === k).length}</div><div class="l"><i style="background:var(${CAT[k].v})"></i>${CAT[k].name}</div></div>`).join("");
+  CAT_ORDER.forEach(k => $("cnt-" + k).textContent = live.filter(d => catKey(d) === k).length);
+  const low = live.filter(lowConf);
+  $("reviewNote").hidden = low.length === 0;
+  $("reviewText").textContent = `${low.length} detection${low.length > 1 ? "s" : ""} below 0.70 confidence. Check ${low.length > 1 ? "them" : "it"} on the drawing.`;
+  applyFilter();
+}
+
+const lowConf = d => d.conf < REVIEW && !d.corrected;      // a name the user corrected counts as checked
+
+function symbolRow(d){
+  const tr = document.createElement("tr");
+  tr.className = "row" + (d.wrong ? " wrong" : ""); tr.dataset.id = d.id; tr.dataset.cat = catKey(d); tr.tabIndex = 0;
+  const sub = d.wrong ? `Wrong detection · model said ${esc(d.orig_cls || d.cls)}`
+    : CAT_SINGULAR[catKey(d)] + (d.corrected ? ` · <span class="fixed" title="The model said: ${esc(d.orig_cls)}">corrected</span>` : "");
+  tr.innerHTML = `<td><span class="sym"><i style="background:var(${CAT[catKey(d)].v})"></i><span><span class="nm">${esc(nameOf(d))}</span><small>${sub}</small></span></span></td>
+    <td class="mono">${d.tag ? esc(d.tag) : '<span class="muted">—</span>'}</td>
+    <td><span class="conf ${!d.wrong && lowConf(d) ? "low" : ""}">${d.conf.toFixed(2)}</span></td>
+    <td class="act"></td>`;
+  const act = tr.querySelector(".act");
+  if (d.wrong) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "restore"; b.textContent = "Restore";
+    b.title = "It is a real symbol: put it back";
+    b.addEventListener("click", e => { e.stopPropagation(); applyEdit(d, {wrong:false}, `Restored ${nameOf(d)}.`); });
+    act.appendChild(b);
+  } else if (CLASSES.length) {
+    act.innerHTML = editSelect(d);
+    const sel = act.querySelector("select");
+    ["click", "keydown", "mousedown"].forEach(ev => sel.addEventListener(ev, e => e.stopPropagation()));
+    sel.addEventListener("change", () => {
+      const v = sel.value; sel.value = "";
+      if (v === "wrong") applyEdit(d, {wrong:true}, `Moved ${nameOf(d)} to Wrong detections.`);
+      else if (v === "undo") applyEdit(d, {cls_id:d.orig_cls_id}, `Changed back to ${d.orig_cls}.`);
+      else if (v !== "") { const c = CLASSES.find(c => c.id === +v); applyEdit(d, {cls_id:+v}, `Renamed to ${c ? c.name : "the new symbol"}.`); }
+    });
+  }
+  tr.addEventListener("mouseenter", () => setActive(d.id));
+  tr.addEventListener("mouseleave", () => setActive(null));
+  tr.addEventListener("click", () => { setActive(d.id, true); scrollToBox(d); });
+  tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(d.id, true); scrollToBox(d); } });
+  return tr;
+}
+
+// ---------- corrections
+let CLASSES = [];                                   // [{id, name, cat}] from /api/classes
+function editSelect(d){
+  const groups = CAT_ORDER.map(k => {
+    const opts = CLASSES.filter(c => c.cat === k).map(c => c.name === d.cls
+      ? `<option value="${c.id}" disabled>${esc(c.name)} (current)</option>` : `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    return opts ? `<optgroup label="${CAT[k].name}">${opts}</optgroup>` : "";
+  }).join("");
+  const undo = d.corrected ? `<option value="undo">↺ Undo: back to ${esc(d.orig_cls)}</option>` : "";
+  return `<select class="edit" aria-label="Fix ${esc(nameOf(d))}" title="Wrong name? Pick the right one. Not a symbol? Choose Wrong detection.">
+    <option value="" selected>Fix ▾</option>${undo}${groups}
+    <optgroup label="Not a symbol"><option value="wrong">✕ Wrong detection</option></optgroup></select>`;
+}
+function localEdit(d, p){                           // the built-in sample drawing has no server job
+  if (p.wrong !== undefined) { if (p.wrong) d.wrong = true; else delete d.wrong; }
+  if (p.cls_id !== undefined) {
+    const c = CLASSES.find(c => c.id === p.cls_id); if (!c) return;
+    if (!d.orig_cls) Object.assign(d, {orig_cls:d.cls, orig_cls_id:d.cls_id, orig_name:d.name});
+    Object.assign(d, {cls:c.name, cls_id:c.id, cat:c.cat, name:c.cat === "inst" && d.desc ? d.desc : c.name, corrected:true});
+    if (d.orig_cls === c.name) { d.name = d.orig_name; ["orig_cls", "orig_cls_id", "orig_name", "corrected"].forEach(k => delete d[k]); }
+  }
+}
+async function applyEdit(d, payload, msg){
+  try {
+    if (state.job) {
+      const r = await fetch("/api/edit", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({job_id:state.job, page:state.page, id:d.id, ...payload})});
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || `Server error ${r.status}`);
+      ["orig_cls", "orig_cls_id", "orig_name", "corrected", "wrong"].forEach(k => delete d[k]);
+      Object.assign(d, data);
+    } else localEdit(d, payload);
+    if (payload.wrong) pinned = null;
+    render(); setActive(null);
+    toast(msg);
+  } catch (e) { toast(`Could not save the change: ${e.message}`, 6000); render(); }
+}
+
+function applyFilter(){
+  document.querySelectorAll(".det").forEach(e => e.classList.toggle("off", !state.show[e.dataset.cat]));
+  document.querySelectorAll("tr.row").forEach(r => r.classList.toggle("dim", !state.show[r.dataset.cat]));
+}
+
+let pinned = null;
+function setActive(id, pin){
+  if (pin) pinned = (pinned === id ? null : id);
+  const cur = id || pinned;
+  document.querySelectorAll(".det").forEach(e => {
+    e.classList.toggle("active", e.dataset.id === cur);
+    e.classList.toggle("dim", !!cur && e.dataset.id !== cur);
+  });
+  document.querySelectorAll("tr.row").forEach(r => r.classList.toggle("active", r.dataset.id === cur));
+}
+function scrollToBox(d){
+  const v = $("viewer"), svg = $("drawing");
+  if (v.scrollWidth <= v.clientWidth && v.scrollHeight <= v.clientHeight) return;
+  const k = svg.clientWidth / state.W, [x,y,w,h] = d.b;
+  v.scrollTo({left: (x + w/2) * k - v.clientWidth/2, top: (y + h/2) * k - v.clientHeight/2, behavior:"smooth"});
+}
+
+// ---------- controls
+document.querySelectorAll(".fchip input").forEach(cb => cb.addEventListener("change", () => {
+  state.show[cb.dataset.cat] = cb.checked; applyFilter();
+}));
+$("showLabels").addEventListener("change", e => $("drawing").classList.toggle("nolabels", !e.target.checked));
+// ---------- zoom: touchpad pinch, Ctrl/⌘ + scroll, touch pinch, buttons; drag to pan
+const ZMIN = 1, ZMAX = 16;
+let zoom = 1;
+function setZoom(z, clientX, clientY){
+  const v = $("viewer"), r = v.getBoundingClientRect();
+  z = Math.min(ZMAX, Math.max(ZMIN, z));
+  const ax = clientX == null ? v.clientWidth / 2 : clientX - r.left;     // keep the point under the cursor still
+  const ay = clientY == null ? v.clientHeight / 2 : clientY - r.top;
+  const px = (v.scrollLeft + ax) / zoom, py = (v.scrollTop + ay) / zoom;
+  zoom = z;
+  $("drawing").style.width = (zoom * 100) + "%";
+  v.scrollLeft = px * zoom - ax; v.scrollTop = py * zoom - ay;
+  $("zoomVal").textContent = zoom <= 1.001 ? "Fit" : Math.round(zoom * 100) + "%";
+  v.classList.toggle("zoomed", zoom > 1.001);
+}
+(() => {
+  const v = $("viewer");
+  v.addEventListener("wheel", e => {                 // touchpad pinch arrives as Ctrl + wheel (Chrome, Edge, Firefox)
+    if (!e.ctrlKey && !e.metaKey) return;            // plain two-finger scroll = pan, as normal
+    e.preventDefault();
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    setZoom(zoom * Math.exp(-dy * (e.ctrlKey && !e.metaKey ? 0.01 : 0.002)), e.clientX, e.clientY);
+  }, {passive:false});
+  let gBase = 1;                                       // Safari on Mac: gesture events
+  v.addEventListener("gesturestart", e => { e.preventDefault(); gBase = zoom; });
+  v.addEventListener("gesturechange", e => { e.preventDefault(); setZoom(gBase * e.scale, e.clientX, e.clientY); });
+  v.addEventListener("gestureend", e => e.preventDefault());
+  let t0 = null;                                       // touch screens: two-finger pinch
+  const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  v.addEventListener("touchstart", e => { if (e.touches.length === 2) t0 = {d:dist(e.touches), z:zoom}; }, {passive:true});
+  v.addEventListener("touchmove", e => {
+    if (e.touches.length !== 2 || !t0) return;
+    e.preventDefault();
+    setZoom(t0.z * dist(e.touches) / t0.d, (e.touches[0].clientX + e.touches[1].clientX) / 2,
+            (e.touches[0].clientY + e.touches[1].clientY) / 2);
+  }, {passive:false});
+  v.addEventListener("touchend", e => { if (e.touches.length < 2) t0 = null; });
+  let drag = null, moved = false, noClickUntil = 0;                      // mouse/touchpad click-and-drag to pan when zoomed in
+  v.addEventListener("pointerdown", e => {
+    if (e.pointerType !== "mouse" || e.button !== 0 || zoom <= 1.001) return;
+    drag = {x:e.clientX, y:e.clientY, l:v.scrollLeft, t:v.scrollTop}; moved = false;
+  });
+  window.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.hypot(dx, dy) < 5) return;
+    moved = true; v.classList.add("panning");
+    v.scrollLeft = drag.l - dx; v.scrollTop = drag.t - dy;
+  });
+  window.addEventListener("pointerup", () => {
+    if (drag && moved) noClickUntil = performance.now() + 80;   // the click that ends a drag is not a selection
+    drag = null; moved = false; v.classList.remove("panning");
+  });
+  v.addEventListener("click", e => { if (performance.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $("zoomIn").addEventListener("click", () => setZoom(zoom * 1.5));
+  $("zoomOut").addEventListener("click", () => setZoom(zoom / 1.5));
+  $("zoomFit").addEventListener("click", () => setZoom(1));
+  v.addEventListener("dblclick", e => { if (!e.target.closest(".det")) setZoom(zoom > 1.001 ? 1 : 3, e.clientX, e.clientY); });
+})();
+
+const tabs = [["tab-sym","p-sym"],["tab-chat","p-chat"],["tab-rep","p-rep"]];
+tabs.forEach(([t]) => $(t).addEventListener("click", () => {
+  tabs.forEach(([tt,pp]) => { $(tt).setAttribute("aria-selected", tt === t); $(pp).hidden = tt !== t; });
+}));
+
+const toastEl = $("toast"); let tt;
+function toast(msg, ms = 3500){ toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => toastEl.classList.remove("show"), ms); }
+
+// ---------- upload + analyze
+async function analyze(file){
+  if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) { toast("Upload a PDF, PNG or JPG file."); return; }
+  $("busyText").textContent = `Analyzing ${file.name}…`; $("busy").hidden = false;
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const r = await fetch("/api/analyze", {method:"POST", body:fd});
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || `Server error ${r.status}`);
+    loadResult(data);
+  } catch (e) {
+    toast(e instanceof TypeError ? "Can't reach the server. Start it with: uvicorn app.main:app --reload" : e.message, 6000);
+  } finally {
+    $("busy").hidden = true; $("upload").value = "";
+  }
+}
+function loadResult(res){            // a new document: page 1 is ready, the other pages load in the background
+  Object.assign(state, {sample:false, job:res.job_id, filename:res.filename, pageCount:res.page_count || 1,
+                        pages:{1:res}, pending:{}, failed:{}});
+  showPage(1, true);
+  $("chat").innerHTML = ""; chatHistory = [];
+  const more = state.pageCount > 1 ? ` (${state.pageCount} pages)` : "";
+  addMsg(`Ask me anything about ${res.filename}${more}: e.g. "Which pressure instruments are there?" or "List the valves larger than 100 NB."`, "bot");
+  if (!res.model) toast("No trained model found at models/best.pt, so no symbols were detected.", 7000);
+  if (state.pageCount > 1) loadRemaining(res.job_id);
+}
+
+function fetchPage(n){
+  const job = state.job;
+  if (state.pages[n]) return Promise.resolve(state.pages[n]);
+  if (!state.pending[n]) {
+    delete state.failed[n];
+    state.pending[n] = fetch(`/api/page/${job}/${n}`).then(async r => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || `Server error ${r.status}`);
+      if (state.job === job) state.pages[n] = data;
+      return data;
+    }).catch(e => { if (state.job === job) state.failed[n] = e.message; throw e; })
+      .finally(() => { if (state.job === job) { delete state.pending[n]; renderPageBar(); } });
+    renderPageBar();
+  }
+  return state.pending[n];
+}
+
+async function loadRemaining(job){
+  for (let n = 2; n <= state.pageCount && state.job === job; n++) {
+    try { await fetchPage(n); } catch (e) { /* shown on the page chip; others continue */ }
+  }
+}
+
+async function goToPage(n){
+  if (state.pages[n]) { showPage(n); return; }
+  state.page = n; renderPageBar();
+  try { const res = await fetchPage(n); if (state.page === n && state.pages[n]) showPage(n); }
+  catch (e) { toast(`Page ${n}: ${e.message}`, 6000); }
+}
+
+function renderPageBar(){
+  const bar = $("pageBar"), box = $("pageChips");
+  bar.hidden = state.sample || state.pageCount < 2;
+  if (bar.hidden) return;
+  box.innerHTML = "";
+  for (let n = 1; n <= state.pageCount; n++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pchip";
+    const res = state.pages[n];
+    let st = res ? `${res.detections.length} found` : state.failed[n] ? "failed" : state.pending[n] ? "analysing…" : "queued";
+    if (!res) b.classList.add(state.failed[n] ? "err" : "wait");
+    b.setAttribute("aria-current", n === state.page);
+    b.title = res ? `${res.detections.length} symbols on page ${n}` : state.failed[n] || `Page ${n} is ${st}`;
+    b.innerHTML = `${n} <span class="st">${esc(st)}</span>`;
+    b.addEventListener("click", () => goToPage(n));
+    box.appendChild(b);
+  }
+  const done = Object.keys(state.pages).length, total = Object.values(state.pages).reduce((a, r) => a + r.detections.length, 0);
+  $("pageProg").textContent = done < state.pageCount
+    ? `${done} of ${state.pageCount} pages analysed`
+    : `All ${state.pageCount} pages analysed · ${total} symbols`;
+}
+
+function showPage(n, first){
+  const res = state.pages[n];
+  res.detections.forEach(d => { d.tag = d.tag || ""; d.desc = d.desc || ""; });   // same objects: corrections stay per page
+  Object.assign(state, {page:n, W:res.width, H:res.height, dets:res.detections});
+  pinned = null;
+  const img = $("bgImg");
+  $("drawing").setAttribute("viewBox", `0 0 ${res.width} ${res.height}`);
+  img.setAttribute("href", res.image); img.setAttribute("width", res.width); img.setAttribute("height", res.height);
+  img.removeAttribute("hidden"); $("sample").style.display = "none";
+  $("dwgTitle").textContent = state.pageCount > 1 ? `${res.filename} · page ${n} of ${state.pageCount}` : res.filename;
+  $("dwgChip").textContent = "Analyzed";
+  $("viewer").scrollTo(0, 0);
+  $("repName").textContent = `Preview of ${res.filename.replace(/\.[^.]+$/, "")}_report.xlsx`;
+  setZoom(1); $("viewer").scrollTo(0, 0);
+  if (first) { $("showLabels").checked = res.detections.length <= 60; $("showLabels").dispatchEvent(new Event("change")); }
+  render(); renderPageBar();
+}
+$("upload").addEventListener("change", e => { const f = e.target.files[0]; if (f) analyze(f); });
+
+const vb = $("viewerBox");
+["dragenter","dragover"].forEach(t => vb.addEventListener(t, e => { e.preventDefault(); $("dropHint").hidden = false; }));
+["dragleave","drop"].forEach(t => vb.addEventListener(t, e => { e.preventDefault(); $("dropHint").hidden = true; }));
+vb.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) analyze(f); });
+
+// ---------- Excel
+$("exportBtn").addEventListener("click", async () => {
+  if (state.sample) { toast("Upload a drawing first. The sample has no report."); return; }
+  try {
+    const r = await fetch(`/api/report/${state.job}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `Server error ${r.status}`);
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = state.filename.replace(/\.[^.]+$/, "") + "_report.xlsx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    const done = Object.keys(state.pages).length;
+    toast(done < state.pageCount
+      ? `Excel report downloaded with ${done} of ${state.pageCount} pages. The rest are still being analysed: export again when they finish.`
+      : state.pageCount > 1 ? `Excel report downloaded (all ${state.pageCount} pages).` : "Excel report downloaded.", 6000);
+  } catch (e) { toast(e.message); }
+});
+
+// ---------- chat
+const chat = $("chat");
+function addMsg(text, who){ const m = document.createElement("div"); m.className = "msg " + who; m.textContent = text; chat.appendChild(m); chat.scrollTop = chat.scrollHeight; return m; }
+function sampleAnswer(q){
+  const ql = q.toLowerCase(), D = state.dets;
+  if (ql.includes("valve")) return `${D.filter(d=>d.cat==="valve").length} valves detected.`;
+  if (ql.includes("instrument")) { const i = D.filter(d=>d.cat==="inst"); return `${i.length} instruments: ${i.map(d=>d.tag).join(", ")}.`; }
+  if (ql.includes("tag")) return D.filter(d=>d.tag).map(d=>d.tag).join(", ") + ".";
+  if (ql.includes("review")) return "The valve on the V-102 drain (0.62) is below 0.70. Check it on the drawing.";
+  return "This is the sample drawing. Upload your own P&ID to ask about it.";
+}
+let chatHistory = [];              // this drawing's conversation, sent back for follow-up questions
+let chatBusy = false;
+async function ask(q){
+  if (chatBusy) return;
+  addMsg(q, "user");
+  if (state.sample) { setTimeout(() => addMsg(sampleAnswer(q), "bot"), 250); return; }
+  chatBusy = true; $("chatSend").disabled = true;
+  const pending = addMsg("Thinking…", "bot"); pending.classList.add("thinking");
+  try {
+    const r = await fetch("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({job_id:state.job, question:q, history:chatHistory})});
+    const data = await r.json().catch(() => ({}));
+    pending.classList.remove("thinking");
+    if (r.ok) {
+      pending.textContent = data.answer;
+      chatHistory.push({role:"user", content:q}, {role:"assistant", content:data.answer});
+      chatHistory = chatHistory.slice(-10);
+    } else {
+      pending.textContent = data.detail || `Server error ${r.status}`;
+    }
+  } catch (e) {
+    pending.classList.remove("thinking"); pending.textContent = "Can't reach the server.";
+  } finally {
+    chatBusy = false; $("chatSend").disabled = false; chat.scrollTop = chat.scrollHeight;
+  }
+}
+$("chatForm").addEventListener("submit", e => { e.preventDefault(); const i = $("chatInput"); if (i.value.trim()) { ask(i.value.trim()); i.value = ""; } });
+document.querySelectorAll("#suggest button").forEach(b => b.addEventListener("click", () => ask(b.textContent)));
+
+// ---------- start
+addMsg("This is a sample drawing. Upload your own P&ID, then ask about valves, instruments, tags, or what needs review.", "bot");
+render();
+fetch("/api/classes").then(r => r.ok ? r.json() : []).then(c => { CLASSES = c; render(); }).catch(() => {});
+fetch("/api/status").then(r => r.json()).then(s => {
+  $("chatHint").textContent = s.gpt
+    ? `Answers by GPT (${s.gpt_model}), using only what was detected on this drawing.`
+    : "Answers use the symbols and tags detected on this drawing.";
+}).catch(() => toast("Server not running. Start it with: uvicorn app.main:app --reload", 6000));
+</script>
+</body>
+</html>

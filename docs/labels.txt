@@ -1,0 +1,32 @@
+Butterfly valve A
+Ball Valve A
+Globe Valve
+Valve
+Ball/Plug valve variant
+Butterfly valve B
+Ball Valve B
+Check valve
+Diaphragm valve
+Needle valve
+Partially open valve
+Bleeder valve
+Normally-closed globe valve
+Control valve
+Rotary valve (open)
+Rotary valve (closed)
+Spectacle blind A
+Spectacle blind B
+Spectacle blind C
+Compressor
+Blind Flange
+In line mixer
+Jacketed/traced pipe
+Flow-direction arrow
+Sight Glass
+Field-mounted instrument A
+Field-mounted instrument B
+Control-room instrument
+Auxiliary-panel instrument
+Instrument/function box
+DCS/shared display
+Tag/label box

@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pymupdf
+pillow
+numpy
+openpyxl
+ultralytics
+rapidocr-onnxruntime
+openai

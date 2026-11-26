@@ -1,0 +1,227 @@
+[
+  {
+    "id": 0,
+    "name": "Gate valve (bar)",
+    "category": "valve"
+  },
+  {
+    "id": 1,
+    "name": "Ball valve",
+    "category": "valve"
+  },
+  {
+    "id": 2,
+    "name": "Globe valve",
+    "category": "valve"
+  },
+  {
+    "id": 3,
+    "name": "Gate valve",
+    "category": "valve"
+  },
+  {
+    "id": 4,
+    "name": "Ball valve (flanged)",
+    "category": "valve"
+  },
+  {
+    "id": 5,
+    "name": "Butterfly valve",
+    "category": "valve"
+  },
+  {
+    "id": 6,
+    "name": "Lever-operated valve",
+    "category": "valve"
+  },
+  {
+    "id": 7,
+    "name": "Non-return valve",
+    "category": "valve",
+    "needs_label": true
+  },
+  {
+    "id": 8,
+    "name": "Diaphragm valve",
+    "category": "valve"
+  },
+  {
+    "id": 9,
+    "name": "Needle valve",
+    "category": "valve"
+  },
+  {
+    "id": 10,
+    "name": "Gate valve (partially open)",
+    "category": "valve"
+  },
+  {
+    "id": 11,
+    "name": "Gate valve (normally closed)",
+    "category": "valve"
+  },
+  {
+    "id": 12,
+    "name": "Globe valve (normally closed)",
+    "category": "valve"
+  },
+  {
+    "id": 13,
+    "name": "Control valve",
+    "category": "valve"
+  },
+  {
+    "id": 14,
+    "name": "Plug valve (open)",
+    "category": "valve"
+  },
+  {
+    "id": 15,
+    "name": "Plug valve (closed)",
+    "category": "valve"
+  },
+  {
+    "id": 16,
+    "name": "Line blind flange",
+    "category": "fitting"
+  },
+  {
+    "id": 17,
+    "name": "Spectacle blind (closed)",
+    "category": "fitting"
+  },
+  {
+    "id": 18,
+    "name": "Spectacle blind (open)",
+    "category": "fitting"
+  },
+  {
+    "id": 19,
+    "name": "Reducer",
+    "category": "fitting"
+  },
+  {
+    "id": 20,
+    "name": "Flange",
+    "category": "fitting"
+  },
+  {
+    "id": 21,
+    "name": "In-line mixer",
+    "category": "fitting",
+    "show": false
+  },
+  {
+    "id": 22,
+    "name": "Jacketed pipe",
+    "category": "fitting"
+  },
+  {
+    "id": 23,
+    "name": "Flow-direction arrow",
+    "category": "fitting",
+    "show": false
+  },
+  {
+    "id": 24,
+    "name": "Sight glass",
+    "category": "fitting"
+  },
+  {
+    "id": 25,
+    "name": "Field-mounted instrument",
+    "category": "instrument"
+  },
+  {
+    "id": 26,
+    "name": "Restriction orifice",
+    "category": "instrument"
+  },
+  {
+    "id": 27,
+    "name": "Control-room instrument",
+    "category": "instrument"
+  },
+  {
+    "id": 28,
+    "name": "Auxiliary-panel instrument",
+    "category": "instrument"
+  },
+  {
+    "id": 29,
+    "name": "Function box",
+    "category": "instrument",
+    "show": false
+  },
+  {
+    "id": 30,
+    "name": "DCS shared display",
+    "category": "instrument"
+  },
+  {
+    "id": 31,
+    "name": "Tag box",
+    "category": "instrument",
+    "show": false
+  },
+  {
+    "id": 32,
+    "name": "Safety relief valve",
+    "category": "valve"
+  },
+  {
+    "id": 33,
+    "name": "Three-way valve",
+    "category": "valve"
+  },
+  {
+    "id": 34,
+    "name": "Angle valve",
+    "category": "valve"
+  },
+  {
+    "id": 35,
+    "name": "Solenoid valve",
+    "category": "valve"
+  },
+  {
+    "id": 36,
+    "name": "Motor-operated valve",
+    "category": "valve"
+  },
+  {
+    "id": 37,
+    "name": "Pressure regulator",
+    "category": "valve"
+  },
+  {
+    "id": 38,
+    "name": "Y-strainer",
+    "category": "fitting"
+  },
+  {
+    "id": 39,
+    "name": "Steam trap",
+    "category": "fitting"
+  },
+  {
+    "id": 40,
+    "name": "Centrifugal pump",
+    "category": "fitting"
+  },
+  {
+    "id": 41,
+    "name": "PLC function",
+    "category": "instrument"
+  },
+  {
+    "id": 42,
+    "name": "Computer function",
+    "category": "instrument"
+  },
+  {
+    "id": 43,
+    "name": "Interlock",
+    "category": "instrument"
+  }
+]

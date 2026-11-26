@@ -1,0 +1,12 @@
+.env
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# weights — attach to a GitHub Release instead
+*.pt
+
+# datasets — too large / not ours to redistribute
+data/
+docs/tile_check_full.jpg
