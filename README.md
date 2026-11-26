@@ -1,8 +1,6 @@
 # Intelligent P&ID Analysis Through OCR and YOLO-Based Detection
 
-Final Year Project, Universiti Teknologi PETRONAS.
-A web app that detects symbols on Piping & Instrumentation Diagrams (P&IDs), reads their tags,
-and produces an Excel report and a chatbot summary.
+Turns a scanned P&ID back into structured data — 44 symbol classes detected with YOLOv8, instrument tags read by OCR and decoded against ISA-5.1, delivered as an Excel inventory and a grounded chatbot. Developed as a final year project at Universiti Teknologi PETRONAS, 2026.
 
 ## What it does
 1. Upload a P&ID (PDF, PNG or JPG)
