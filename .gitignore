@@ -1,12 +1,23 @@
-.env
+# Python
 venv/
 __pycache__/
 *.pyc
+
+# Mac
 .DS_Store
 
-# weights — attach to a GitHub Release instead
+# Secrets
+.env
+
+# Weights — attach to a GitHub Release instead
 *.pt
 
-# datasets — too large / not ours to redistribute
+# Large or generated files
 data/
+runs/
+*.zip
+docs/debug/
 docs/tile_check_full.jpg
+
+# Third-party contractor drawing — not ours to redistribute
+docs/evaluation/*.png
